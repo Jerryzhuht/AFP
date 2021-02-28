@@ -24,11 +24,15 @@ class Simulator:
     
     @property
     def max_sharpe(self):
-        return np.sqrt(self.mu_real.T @ inv(self.sigma_real) @ self.mu_real)
+        if self.mu_real is not None and self.sigma_real is not None:
+            return np.sqrt(self.mu_real.T @ inv(self.sigma_real) @ self.mu_real)
+        return 
     
     @property
     def msr_weight(self):
-        return inv(self.sigma_real) @ self.mu_real / (np.ones(len(self.mu_real)).T @ inv(self.sigma_real) @ self.mu_real)
+        if self.mu_real and self.sigma_real:
+            return inv(self.sigma_real) @ self.mu_real / (np.ones(len(self.mu_real)).T @ inv(self.sigma_real) @ self.mu_real)
+        return 
         
     @staticmethod
     def _parse_opt(opt, *args, **kwargs):
@@ -47,6 +51,8 @@ class Simulator:
         np.random.seed(self.seed)
         for _ in range(num_times):
             sample = self.gen_sample()
+            if isinstance(sample, pd.DataFrame):
+                sample = sample.values
             sample_corr = np.corrcoef(sample[:self.n,:].T)
             weights = _opt.optimize(signal=pd.Series(mu_pred), 
                                    sample_var=sample_corr)
@@ -66,7 +72,8 @@ class Simulator:
         df_all = pd.concat(df_all, axis=0)
         g = sns.displot(data=df_all, x='OS Sharpe Ratio', kind="kde", 
                         fill=True, hue='Optimizer')
-        g.ax.axvline(self.max_sharpe)
+        if self.max_sharpe:
+            g.ax.axvline(self.max_sharpe)
         g.fig.subplots_adjust(top=0.9)
         g.fig.suptitle(f"n = {self.n}; p = {self.p}", fontsize=20)
         
@@ -90,4 +97,14 @@ class SimulatorSB(Simulator):
         return np.vstack(sample)
         
         
+class SimulatorBS(Simulator):
+    
+    def __init__(self, n, p, df_returns, seed=0):
+        mu_real, sigma_real = None, None
+        super().__init__(n, p, mu_real, sigma_real, seed=seed)
+        self.df = df_returns
+        
+    def gen_sample(self):
+        start_index = np.random.randint(0, len(self.df)-self.n*2)
+        return self.df.iloc[start_index:start_index+self.n*2,:self.p]
         
