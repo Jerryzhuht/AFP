@@ -24,7 +24,7 @@ class Optimizer:
         """
         pass
         
-class BenchMark(Optimizer):
+class EqualWeighted(Optimizer):
     """
     This optimizer longs 1 dollar, with equal position for each stock.
     """
